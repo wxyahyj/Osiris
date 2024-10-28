@@ -6,25 +6,21 @@
 #include <string_view>
 #include <utility>
 
+#include "PatternStringWildcard.h"
 #include <Utils/HexChars.h>
 
 enum class BytePatternConverterError {
     NoError,
-    StartsWithWildcard,
-    EndsWithWildcard,
     WildcardUsedAsByte,
     UnexpectedChar
 };
 
 template <std::size_t N>
+    requires (N > 0)
 struct BytePatternConverter {
-    static constexpr auto wildcardChar = '?';
-
-    static_assert(N > 0);
-
-    explicit constexpr BytePatternConverter(const char(&pattern)[N])
+    explicit constexpr BytePatternConverter(const char(&patternString)[N])
     {
-        std::ranges::copy(pattern, buffer.begin());
+        std::ranges::copy(patternString, buffer.begin());
     }
 
     using Error = BytePatternConverterError;
@@ -75,12 +71,12 @@ private:
 
     [[nodiscard]] static constexpr bool isWildcardChar(char c) noexcept
     {
-        return c == wildcardChar;
+        return c == kPatternStringWildcard;
     }
 
     [[nodiscard]] constexpr bool isNextCharWildcard() const
     {
-        return peekNextChar() == wildcardChar;
+        return isWildcardChar(peekNextChar());
     }
 
     [[nodiscard]] constexpr bool isNextCharSpace() const
@@ -134,14 +130,8 @@ private:
     {
         assert(isNextCharWildcard());
 
-        if (readPosition == 0) {
-            error = Error::StartsWithWildcard;
-        } else if (charsToConvert() <= 2) {
-            error = Error::EndsWithWildcard;
-        } else {
-            advanceReadPosition();
-            putChar(wildcardChar);
-        }
+        advanceReadPosition();
+        putChar(kPatternStringWildcard);
     }
 
     [[nodiscard]] constexpr bool canConvertByte() const noexcept

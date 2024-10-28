@@ -4,9 +4,10 @@
 
 #include "PebLdr.h"
 #include "PortableExecutable.h"
+#include <Utils/GenericPointer.h>
 #include <Utils/MemorySection.h>
-#include <Utils/SafeAddress.h>
 #include "WindowsPlatformApi.h"
+#include "WindowsVmtFinderParams.h"
 
 class WindowsDynamicLibrary {
 public:
@@ -20,11 +21,11 @@ public:
         return handle != nullptr;
     }
 
-    [[nodiscard]] SafeAddress getFunctionAddress(const char* functionName) const noexcept
+    [[nodiscard]] GenericPointer getFunctionAddress(const char* functionName) const noexcept
     {
         if (handle)
             return portableExecutable().getExport(functionName);
-        return SafeAddress{ 0 };
+        return {};
     }
 
     [[nodiscard]] MemorySection getCodeSection() const noexcept
@@ -39,6 +40,18 @@ public:
         if (handle)
             return portableExecutable().getVmtSection();
         return {};
+    }
+
+    [[nodiscard]] MemorySection getDataSection() const noexcept
+    {
+        if (handle)
+            return portableExecutable().getDataSection();
+        return {};
+    }
+
+    [[nodiscard]] WindowsVmtFinderParams getVmtFinderParams() const noexcept
+    {
+        return {getDataSection(), getVmtSection(), handle};
     }
 
     [[nodiscard]] HMODULE getHandle() const noexcept

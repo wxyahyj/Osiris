@@ -11,10 +11,12 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <Platform/Macros/FunctionAttributes.h>
+#include <Utils/GenericPointer.h>
 #include <Utils/MemorySection.h>
-#include <Utils/SafeAddress.h>
 
 #include "LinuxPlatformApi.h"
+#include "LinuxVmtFinderParams.h"
 
 class LinuxDynamicLibrary {
 public:
@@ -26,11 +28,11 @@ public:
         return handle != nullptr;
     }
 
-    [[nodiscard]] SafeAddress getFunctionAddress(const char* functionName) const noexcept
+    [[nodiscard]] GenericPointer getFunctionAddress(const char* functionName) const noexcept
     {
         if (handle)
-            return SafeAddress{ std::uintptr_t(LinuxPlatformApi::dlsym(handle, functionName)) };
-        return SafeAddress{ 0 };
+            return LinuxPlatformApi::dlsym(handle, functionName);
+        return {};
     }
 
     [[nodiscard]] link_map* getLinkMap() const noexcept
@@ -51,8 +53,13 @@ public:
         return getSection(".data.rel.ro");
     }
 
+    [[nodiscard]] LinuxVmtFinderParams getVmtFinderParams() const noexcept
+    {
+        return {getSection(".rodata"), getSection(".data.rel.ro")};
+    }
+
 private:
-    [[nodiscard]] MemorySection getSection(const char* sectionName) const noexcept
+    [[nodiscard]] [[NOINLINE]] MemorySection getSection(const char* sectionName) const noexcept
     {
         void* base = nullptr;
         std::size_t size = 0;

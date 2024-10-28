@@ -3,9 +3,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstddef>
-#include <memory>
-#include <new>
 
+#include <MemoryAllocation/UniquePtr.h>
 #include <Platform/TypeInfoPrecedingVmt.h>
 #include "VmtLength.h"
 
@@ -13,8 +12,7 @@ class VmtCopy {
 public:
     VmtCopy(std::uintptr_t* vmt, VmtLength length) noexcept
         : originalVmt{ vmt }
-        , length{ static_cast<std::size_t>(length) }
-        , replacementVmtWithTypeInfo{ allocateReplacementVmtWithTypeInfo() }
+        , replacementVmtWithTypeInfo{ mem::makeUniqueForOverwrite<std::uintptr_t[]>(static_cast<std::size_t>(length) + platform::lengthOfTypeInfoPrecedingVmt) }
     {
         copyOriginalVmt();
     }
@@ -32,11 +30,6 @@ public:
     }
 
 private:
-    [[nodiscard]] std::uintptr_t* allocateReplacementVmtWithTypeInfo() const noexcept
-    {
-        return new (std::nothrow) std::uintptr_t[lengthWithTypeInfo()];
-    }
-
     void copyOriginalVmt() const noexcept
     {
         if (replacementVmtWithTypeInfo) [[likely]]
@@ -45,10 +38,9 @@ private:
 
     [[nodiscard]] std::size_t lengthWithTypeInfo() const noexcept
     {
-        return length + platform::lengthOfTypeInfoPrecedingVmt;
+        return replacementVmtWithTypeInfo.get_deleter().getNumberOfElements();
     }
 
     std::uintptr_t* originalVmt;
-    std::size_t length;
-    std::unique_ptr<std::uintptr_t[]> replacementVmtWithTypeInfo;
+    UniquePtr<std::uintptr_t[]> replacementVmtWithTypeInfo;
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Platform/Macros/IsPlatform.h>
+#include <Utils/CharUtils.h>
 #include <Utils/Pad.h>
 
 namespace win
@@ -11,21 +12,15 @@ struct ListEntry {
     ListEntry* bLink;
 };
 
+static_assert(IS_WIN64());
+
 struct PebLdrData {
-#if IS_WIN32()
-    PAD(0xC);
-#elif IS_WIN64()
     PAD(0x10);
-#endif
     ListEntry inLoadOrderModuleList;
 };
 
 struct Peb {
-#if IS_WIN32()
-    PAD(0xC);
-#elif IS_WIN64()
     PAD(0x18);
-#endif
     PebLdrData* ldr;
 };
 
@@ -39,10 +34,10 @@ struct UnicodeString {
         return length / sizeof(wchar_t);
     }
 
-    [[nodiscard]] bool equals(const char* otherString) const noexcept
+    [[nodiscard]] bool equalsCaseInsensitive(const char* otherString) const noexcept
     {
         for (std::size_t i = 0; i < lengthInChars(); ++i) {
-            if (buffer[i] != otherString[i] || otherString[i] == '\0')
+            if (utils::toUpper(buffer[i]) != utils::toUpper(otherString[i]) || otherString[i] == '\0')
                 return false;
         }
         return true;

@@ -4,45 +4,38 @@ on: [push, pull_request]
 
 jobs:
   msbuild:
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2022
     strategy:
       matrix:
-        os: [windows-2019, windows-2022]
         toolset: [ClangCL, MSVC]
         configuration: [Debug, Release]
-        exclude:
-          - os: windows-2019
-            toolset: ClangCL
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@v2
     - name: Set toolset
       if: matrix.toolset == 'ClangCL'
       run: echo "toolset=/p:PlatformToolset=${{ matrix.toolset }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: Build
       shell: cmd
-      run: msbuild Osiris.sln /p:Platform=x86 /p:Configuration=${{ matrix.configuration }} ${{ env.toolset }}
+      run: msbuild Osiris.sln /p:Platform=x64 /p:Configuration=${{ matrix.configuration }} ${{ env.toolset }}
 
   cmake:
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2022
     strategy:
       matrix:
-        os: [windows-2019, windows-2022]
         toolset: [ClangCL, MSVC]
         configuration: [Debug, Release]
-        arch: [Win32, x64]
-        exclude:
-          - os: windows-2019
-            toolset: ClangCL
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set toolset
       if: matrix.toolset == 'ClangCL'
       run: echo "toolset=-T ${{ matrix.toolset }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: configure
-      run: cmake -D BUILD_TESTS=1 -A ${{ matrix.arch }} ${{ env.toolset }} -B build
-    - name: build
-      run: cmake --build build --config ${{ matrix.configuration }}
-    - name: Run unit tests
-      run: cd build && ctest --output-on-failure --schedule-random -j $env:NUMBER_OF_PROCESSORS
+      run: cmake -Werror=dev -D BUILD_TESTS=1 -D CMAKE_COMPILE_WARNING_AS_ERROR=1 -A x64 ${{ env.toolset }} -B build
+    - name: build source
+      run: cmake --build build --target Osiris --config ${{ matrix.configuration }}
+    - name: build unit tests
+      run: cmake --build build --target Tests --config ${{ matrix.configuration }}
+    - name: run unit tests
+      run: ctest --test-dir build --output-on-failure --schedule-random -j $env:NUMBER_OF_PROCESSORS

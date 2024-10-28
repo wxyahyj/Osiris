@@ -7,8 +7,8 @@
 
 #include <Windows.h>
 
+#include <Utils/GenericPointer.h>
 #include <Utils/MemorySection.h>
-#include <Utils/SafeAddress.h>
 
 class PortableExecutable {
 public:
@@ -36,11 +36,20 @@ public:
         return {};
     }
 
-    [[nodiscard]] SafeAddress getExport(const char* name) const noexcept
+    [[nodiscard]] MemorySection getDataSection() const noexcept
+    {
+        for (const auto& section : getSectionHeaders()) {
+            if ((section.Characteristics & IMAGE_SCN_MEM_READ) != 0 && std::memcmp(section.Name, ".data", 5) == 0)
+                return MemorySection{std::span{ base + section.VirtualAddress, section.Misc.VirtualSize }};
+        }
+        return {};
+    }
+
+    [[nodiscard]] GenericPointer getExport(const char* name) const noexcept
     {
         const auto exportDataDirectory = getExportDataDirectory();
         if (!exportDataDirectory)
-            return SafeAddress{ 0 };
+            return {};
 
         const auto exportDirectory = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY*>(base + exportDataDirectory->VirtualAddress);
 
@@ -52,13 +61,13 @@ public:
                 const auto functionRva = functions[nameOrdinals[i]];
                 if (isForwardedExport(functionRva, *exportDataDirectory)) {
                     assert(false && "Forwarded exports are not supported yet!");
-                    return SafeAddress{ 0 };
+                    return {};
                 }
-                return SafeAddress{ std::uintptr_t(base + functionRva) };
+                return base + functionRva;
             }
         }
 
-        return SafeAddress{ 0 };
+        return {};
     }
 
 private:
